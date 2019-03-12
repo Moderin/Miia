@@ -1,0 +1,204 @@
+body {
+	background:url("img/bee.jpg");
+	background-size: cover;
+	background-attachment: fixed;
+
+	margin:0;
+}
+
+#left_panel {
+	position: fixed;
+	left: -20vw;
+	height:100vh;
+	background-color: #eeeeee;
+	margin:0;
+	padding: 0;
+	box-shadow: 1mm 0 2mm #bbbbbb;
+	transition: left .5s;
+}
+
+#left_panel table {
+	font-family: Ubuntu;
+	font-size: 80%;
+	color: #666666;
+	border-spacing: 0;
+}
+
+.tr_header {
+	background-color: #55bbff !important;
+	color: #ffffff;
+	font-weight: bolder;
+	font-family: Ubuntu;
+}
+
+#left_panel td {
+	padding: 3mm;
+	border-bottom: .5mm solid #f0f0f0;
+}
+
+#left_panel tr {
+	background-color: #ffffff;
+}
+
+
+#main_panel {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+#daily_nutrition {
+	padding: 2mm;
+	font-family: DejaVu Sans;
+	font-weight: lighter;
+	font-size: 100%;
+	color: #555555;
+}
+
+#daily_nutrition:hover {
+	background-color: rgba(255,255,255,.3);
+	color: #333333;
+}
+
+#start {
+	margin-top: 20vh;
+	font-size: 400%;
+	display: flex;
+	width: 50vw;
+	justify-content: center;
+
+	transition: margin-top .3s;
+}
+
+
+#search_entry {
+	font-family: DejaVu Sans;
+	font-weight: lighter;
+	line-height: 140%;
+	background-color: transparent;
+	border: 0;
+	font-size: 50%;
+	color: #222222;
+	margin-bottom: 1cm;
+	border-bottom: .5mm solid #aaaaaa;
+	width: 30vw;
+}
+
+::placeholder {
+	opacity: .9;
+}
+
+
+.item {
+	font-family: DejaVu Sans, Laksaman;
+	font-weight: lighter;
+	font-size: 170%;
+	color: #222222;
+	display: flex;
+	flex-direction: row;
+	margin-left: 1mm;
+	border-left: 1mm solid transparent;
+	width: 50vw;
+	align-items: center;
+	border-right: .5mm solid transparent;
+}
+
+.item:hover {
+	color: #000000;
+	border-right: .5mm solid #888888;
+	background-color: rgba(255,255,255, .2);
+}
+
+
+.item div {
+	margin-left: .2cm;
+	margin-right: .2cm;
+	margin-top: .1cm;
+	margin-bottom: .1cm;	
+	
+}
+
+.item_state {
+	width: 1.5cm;
+	height: 1.5cm;
+}
+
+.item_name {
+	flex: 4;
+	text-align: left;
+}
+
+.item_calories_div, .item_proteins_div {
+	flex: 1;
+}
+
+#item_template {
+	display: none;
+}
+
+.amount {
+	font-size: 50%;
+	opacity: .75;
+	margin-left: 2mm;
+}
+
+.item input[type=text] {
+	all:unset;
+	max-width: 6cm;
+	border-bottom: .5mm solid rgba(100,100,100,.5);
+	margin-right: 2mm;
+}
+
+.item input[type=text]:focus {
+	border-bottom: .5mm solid rgba(0,100,200,.8);
+
+}
+
+.item input[type=text]::placeholder {
+	opacity: .4;
+}
+.item_calories_div, .item_proteins_div, .item_name {
+	display: flex;
+	flex-direction: row;
+	align-items: flex-end;
+}
+
+
+
+.item_calories_div * input[type=text], .item_proteins_div * input[type=text], input[type=text].amount {
+	width: 1.5cm;
+	text-align: center;
+}
+
+input[type=text].amount {
+	width: 2cm;
+	font-size: .5em;
+}
+
+input[type=checkbox] + label{
+	font-size: .5em;
+}
+
+.item_state {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+}
+
+input[type=checkbox]:focus {
+	outline: none;
+}
+
+#add_food_apply {
+	all: unset;
+	background: rgba(255,255,255,.7);
+	font-size: .5em;
+	padding: 2mm;
+	margin-right: 2mm;
+}
+
+#add_food_apply:hover {
+	border-bottom: solid .75mm rgba(50,150,250,.7);
+	padding-bottom: 1.25mm;
+}

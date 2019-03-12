@@ -1,0 +1,510 @@
+<head>
+	<title>Miia</title>
+	<link rel="stylesheet" href="index.css">
+	<script src="pouchdb-7.0.0.js"></script>
+	<meta charset="utf-8">
+</head>
+
+<body>
+	<!--<div id="left_panel">
+		<table>
+			<tr class="tr_header">
+				<td onclick="document.getElementById('left_panel').style.left = '-20vw'"><</td><td>~1m</td><td>GDA</td><td></td>
+			</tr>
+			<tr>
+				<td>Magnez</td><td>224</span></td><td>350</td><td>mg</td>
+			</tr>
+			<tr>
+				<td>Potas</td><td>182</td><td>224</td><td>mg</td>
+			</tr>
+			<tr>
+				<td>Chlor</td><td>224</td><td>350</td><td>ug</td>
+			</tr>
+			<tr>
+				<td>Wapń</td><td>182</td><td>224</td><td>mg</td>
+			</tr>
+			<tr>
+				<td>Cynk</td><td>882</td><td>224</td><td>ug</td>
+			</tr>
+		</table>
+	</div>-->
+	<div id="main_panel">
+		<div id="daily_nutrition">
+			<span id="daily_calories">123</span><span style="font-size: 75%"> kcal</span>
+			<span id="daily_proteins">1.23</span><span style="font-size: 75%"> g</span>
+		</div>
+
+		<div id="start">
+			<input type="text" placeholder="Hungry?" id="search_entry">
+
+			</input>
+		</div>
+
+
+		<div class="item" id="item_template" onclick="eat(this.id)">
+
+			<!-- Is it ready to eat? (4 days of space) -->
+			<div class="item_state">
+				<!-- this will be filled with proper symbol -->
+			</div>
+
+			<div class="item_name">
+				
+			</div>
+
+			<div class="item_calories_div">
+				<span class="item_calories">123</span><span style="font-size: 50%">kcal</span>
+			</div>
+			<div class="item_proteins_div">
+				<span class="item_proteins">1.23</span><span style="font-size: 50%"> g</span>
+			</div>
+		</div>
+
+
+		<div class="item" id="add_food" style="display: none;">
+
+			<!-- Is it ready to eat? (4 days of space) -->
+			<div class="item_state">
+				<!-- this will be filled with proper symbol -->
+				<input type="checkbox" name="rotation" id="AFRotate" value="yes"></input>
+				<label for="rotation">rotate</label>
+			</div>
+
+			<div class="item_name">
+				<input type="text" placeholder="Name" id="AFName"></input>
+				<input type="text" class="amount" id="AFAmount" placeholder="eg. 100g"></input>
+			</div>
+
+			<div class="item_calories_div">
+				<span class="item_calories"><input type="text" id="AFCalories" placeholder="0"></input></span><span style="font-size: 50%">kcal</span>
+			</div>
+			<div class="item_proteins_div">
+				<span class="item_proteins"><input type="text" id="AFProteins" placeholder="0"></input></span><span style="font-size: 50%"> g</span>
+			</div>
+			<button id="add_food_apply" onclick="addFoodToDb()">OK</button>
+		</div>
+	</div>
+</body>
+
+<script>
+	document.getElementById("search_entry").onfocus = function(){
+		document.getElementById("start").style.marginTop = "5vh";
+	}
+
+	document.getElementById("search_entry").onblur = function(){
+		if(this.value == "")
+			document.getElementById("start").style.marginTop = "20vh";
+	}
+
+	// connect to food db
+	var foods = new PouchDB('http://localhost:5984/miia');
+	console.log("Connected to CouchDB")
+
+	// update db adding days and get daily nutrition
+	foods.get("info").then(function(info){
+
+		// GET NUTRITION
+
+		// set daily_calories
+		document.getElementById("daily_calories").innerHTML = info.daily_calories;
+
+		// set daily proteins
+		document.getElementById("daily_proteins").innerHTML = info.daily_proteins;
+
+
+		// UPDATE DAYS
+
+		var ms_in_day = 1000*60*60*24;
+
+		// what time is it?
+		var today = new Date();
+
+		// how much time (in ms) have passed?
+		var time_between = today.getTime()-(today.getTime()%ms_in_day) - new Date(info.last_run).getTime();
+
+		// how much days have passed?
+		var time_in_days = Math.abs(time_between / ms_in_day);
+
+		// if passed > 4 days, let's set it back to 4, because we can eat it anyway
+		if(time_in_days > 4)
+			time_in_days = 4;
+
+		// set daily nutrition to 0 if day passed
+		if(time_in_days >= 1) {
+			info.daily_calories = 0;
+			info.daily_proteins = 0;
+		}
+
+
+		// get number of docs
+		foods.info().then(function (info) {
+
+			// loop througt products
+			for(var i=1; i<=info.doc_count-1; i++){
+
+				// prepare id in "003" "011" format
+				var id=('00'+i).slice(-3);
+
+				// get object from db
+				foods.get(id).then(function(food){
+
+					// if it's not allergic, we doesn't have to update time
+					if(food.days == undefined || food.class <= 2 || food.days == null)
+						return;
+
+					// let's increase food.days by time that have passed
+					food.days += time_in_days;
+
+					// change back to 4 if higher
+					if(food.days > 4)
+						food.days = 4;
+
+					// send it back to db
+					foods.put(food);
+				});
+			}
+		});
+
+
+
+		info.last_run = new Date(today.getTime() - today.getTime()%ms_in_day);
+		foods.put(info);
+	});
+
+	// add highest food_days parameter, so it will be first all time
+	document.getElementById("item_template").food_days = 6;
+
+	// clean search entry
+	document.getElementById("search_entry").value = "";
+
+	// populates given _item_ by given _doc_ and _num_ meaning how much days are since last eat
+	function populateItem(item, doc) {
+		// set symbol
+		if(doc.class == undefined) doc.class=0;
+
+		if(doc.class > 2) {
+			switch(doc.days) {
+				case 0:
+				item.getElementsByClassName("item_state")[0].innerHTML = '<img src="img/tick_orange.svg"/>';
+				break;
+
+				case 1:
+				item.getElementsByClassName("item_state")[0].innerHTML = '<img src="img/one_day.svg"/>';
+				break;
+
+				case 2:
+				item.getElementsByClassName("item_state")[0].innerHTML = '<img src="img/two_days.svg"/>';
+				break;
+
+				case 3:
+				item.getElementsByClassName("item_state")[0].innerHTML = '<img src="img/three_days.svg"/>';
+				break;
+
+				default:
+				item.getElementsByClassName("item_state")[0].innerHTML = '<img src="img/tick_with_circle.svg"/>';
+				break;
+			}
+		} else {
+			item.getElementsByClassName("item_state")[0].innerHTML = '<img src="img/tick.svg"/>';
+		}
+
+		// set name
+		item.getElementsByClassName("item_name")[0].innerHTML = doc.name_pl;
+
+		// add food_amount if exists
+		if(doc.food_amount != undefined) {
+			item.getElementsByClassName("item_name")[0].innerHTML += " <span class='amount'>"+doc.food_amount+"</div>";
+		}
+
+		// set calories if exists
+		if(doc.kcal == 0 || doc.kcal == undefined)
+			item.getElementsByClassName("item_calories_div")[0].innerHTML="";
+		else
+  			item.getElementsByClassName("item_calories")[0].innerHTML = doc.kcal;
+
+  		// set protein if exists
+  		if(doc.protein == 0 || doc.protein == undefined)
+  			item.getElementsByClassName("item_proteins_div")[0].innerHTML = "";
+  		else
+  			item.getElementsByClassName("item_proteins")[0].innerHTML = doc.protein;
+
+  		// save a class in an easy-reachable form
+  		item.food_days = doc.days;
+
+  		// clone id to the object
+  		item.id = doc._id;
+
+
+  		/*
+	  		If it's not allergic let's give it 3.5, so it's after ready to eat,
+  			but before 3 days foods
+  		*/
+
+  		if(doc.days==undefined || doc.class=="undefined") item.food_days=3.5;
+	}
+
+
+	// clones item_template making other item object, populates it and appends
+	function addItemOnScreenFromDoc(doc) {
+
+		// make new item, cloning template node (which is invisible)
+		var item = document.getElementById('item_template').cloneNode(true);
+
+		// fill it with food data
+		populateItem(item, doc);
+
+
+		/*
+		 	Now, we have to inserd _item_ in a proper place,
+		 	so all items are sorted by days (is it ready to eat?)
+		*/
+
+		var items=document.getElementsByClassName("item");
+
+		for(var i=items.length-1; i >= 0; i--){
+
+			// if this item class >= my class, i should be after this item
+			// but if days==0, so we've eated it today, it shoul be at the beginning
+			if(((items[i].food_days >= item.food_days || items[i].food_days == 0) && item.food_days !=0) ||
+			   (item.food_days == 0 && (items[i].food_days == 0 || items[i].food_days == 6))) {
+				// append or insert before the next element
+				if(i+1 == items.length)
+					document.getElementById("main_panel").appendChild(item);
+				else
+					document.getElementById("main_panel").insertBefore(item, items[i].nextSibling);
+				break;
+			}
+		}
+
+
+
+		// because template's display is set to 'none', we have to change it
+		item.style.display = "flex";
+
+		// return ready item in case if needed
+		return item;
+	}
+
+	// adds item on screen from ID in DB
+	function addItemOnScreenFromDB(id) {
+		window.foods.get(id).then(function(doc) {
+  			addItemOnScreenFromDoc(doc);
+		});
+	}
+
+	// removes all food items
+	function cleanScreen(){
+
+		// loop by class("item").length-1 because number 0 is invisible template
+		for(var i=document.getElementById("main_panel").getElementsByClassName("item").length-1; i>0; i--) {
+
+			var item = document.getElementById("main_panel").getElementsByClassName("item")[i];
+			if(item.id == "add_food"){
+				item.style.display = "none";
+			} else {
+
+				// remove food item
+				//document.getElementById("main_panel").getElementsByClassName("item")[i].remove();
+				item.remove();
+			}
+		}
+	}
+
+	// to prevent executnig old callback filling screen with stuff from last search
+	var callback_serial_number = 0;
+
+	// fills screen with food by keyword
+	function fillScreenWithFood(keyword) {
+		// get number of docs
+		window.foods.info().then(function (info) {
+
+			// this locks old callbacks
+			callback_serial_number++;
+
+			// clean screen
+			cleanScreen();
+
+			// return if value is empty
+			if(keyword=="") return;
+
+			// list all products on screen
+			for(var i=1; i<=info.doc_count-1; i++){
+
+				// prepare id in "003" "011" format
+				var id=('00'+i).slice(-3);
+
+				// copy serial number to pass it to callback
+				var inner_serial_number = callback_serial_number;
+
+				// call db to check food by id adding callback which will be executed when data is ready
+				window.foods.get(id).then(function(food){
+
+					// check if serial number changed, so the new callback have been set so we can return
+					if(callback_serial_number != inner_serial_number) return;
+					
+					// check if food name contains keyword
+					if(keyword == "*" || (food.name_pl.split(keyword).length-1 > 0) ||
+
+						// or the keywords, but then keyword have to contain full db keyword (ended with space)
+					   (food.keywords != undefined && food.keywords.split(keyword + " ").length-1 > 0 ||
+
+					   	// eg. owoce, when the keyword is owoc
+					   	food.keywords.split(keyword.slice(0, keyword.length-1) + " ").length -1 > 0) 
+					   && keyword.length >1){
+
+						// add it finally
+						addItemOnScreenFromDoc(food);
+					}
+				});
+			
+			}
+		});
+	} 
+
+
+	document.body.onkeypress=function(event){
+
+		// if text entry isn't active, activate it and add the key we've pressed
+		if(document.activeElement.nodeName != "INPUT") {
+
+			// focus on search entry
+			document.getElementById("search_entry").focus();
+
+			// pass a key we've pressed if it's not backspace itp.
+			//if(event.keyCode > 46 && event.key.length == 1)
+			if(event.key != "Backspace")
+				document.getElementById("search_entry").value=event.key;
+
+			// call oninput() witch will search for the results
+			document.getElementById("search_entry").oninput();
+		}
+	}
+	
+
+	// called when user clicks an item
+	function eat(id) {
+
+		// let's get our food from db first
+		window.foods.get(id).then(function(food){
+
+			// if it's not allergic we doesn't need to set days parameter
+			if(food.class > 2) {
+
+				// we've just ate it, so let's set days to 0
+				food.days = 0;
+
+
+				/*					
+				 *		ZERO-ING CROSS REACTIONS
+				 */
+
+				// check if cross reaction exists
+				if(food.cross_reaction != undefined) {
+
+					// iterate over each cross element
+					for(var i=0; i<food.cross_reaction.length; i++) {
+
+						// get cross food from db
+						window.foods.get(food.cross_reaction[i]).then(function(cross_food){
+
+							// update value and put it back
+							cross_food.days = 0;
+							window.foods.put(cross_food);
+						});
+					}
+				}
+
+
+				// put food back to db
+				window.foods.put(food).then(function(food){
+					// call oninput() witch will update the results
+					document.getElementById("search_entry").oninput();
+				});
+
+
+			} else {
+				// call oninput() witch will update the results
+				document.getElementById("search_entry").oninput();
+			}
+
+			return food;
+			
+			// when it's done, we're ready to update the screen
+		}).then(function(food){
+			
+			// check if food contains some proteins or calories
+			if(food.kcal > 0 || food.protein > 0) {
+
+				// get info doc from db to update calories and proteins
+				window.foods.get("info").then(function(info){
+	
+					// add eaten calories
+					if(food.kcal > 0)
+						info.daily_calories += food.kcal;
+
+					// add eaten proteins
+					if(food.protein > 0)
+						info.daily_proteins += food.protein;
+
+					// put info back to db
+					window.foods.put(info);
+					
+					// update screen
+					document.getElementById("daily_calories").innerHTML = info.daily_calories;
+					document.getElementById("daily_proteins").innerHTML = info.daily_proteins;
+				});
+			}
+		});
+	}
+
+	// set oninput callback for search entry
+	document.getElementById("search_entry").oninput=function(event){
+		if(this.value == "")
+			this.blur();
+		
+		// update the results
+		if(this.value == "+") {
+			document.getElementById("add_food").style.display = "flex";
+		} else {
+			fillScreenWithFood(document.getElementById("search_entry").value.toLowerCase());
+		}
+	}
+
+
+	function nutrition_clicked(){
+		var panel = document.getElementById("left_panel");
+		// hide or show panel
+		if(panel.style.left == "-20vw" || panel.style.left == "")
+			panel.style.left = 0;
+		else
+			panel.style.left = "-20vw";
+	}
+
+	function addFoodToDb() {
+		var name = document.getElementById("AFName").value;
+		var amount = document.getElementById("AFAmount").value;
+		var calories = parseInt(document.getElementById("AFCalories").value);
+		var proteins = parseInt(document.getElementById("AFProteins").value);
+		var fClass = (document.getElementById("AFRotate").checked) ? 3 : 1;
+
+		window.foods.info().then(function (info) {
+			var id = ('00'+info.doc_count).slice(-3);
+
+
+			window.foods.put({
+			  _id: id,
+			  name_pl: name,
+			  food_amount: amount,
+			  kcal:calories,
+			  protein: proteins,
+			  class: fClass
+			}).then(function (response) {
+			  cleanScreen();
+			  document.getElementById("search_entry").value = "";
+			}).catch(function (err) {
+			  console.log(err);
+			});
+		});
+
+	}
+</script>
